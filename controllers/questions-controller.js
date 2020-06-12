@@ -14,6 +14,7 @@ const allSqlColumnsNames = [
 let db = new sqlite3.Database(dbName, (err) => {
     if (err) throw err;
 
+    //create a table if doesn't exist
     db.run(
         "CREATE TABLE IF NOT EXISTS questions_base (id INTEGER PRIMARY KEY, question VARCHAR(255), category VARCHAR(255), 'type' VARCHAR(255), difficulty VARCHAR(255), correct_answer VARCHAR(255), incorrect_answers VARCHAR(255));"
     );
@@ -24,13 +25,20 @@ let db = new sqlite3.Database(dbName, (err) => {
 });
 
 exports.findAll = (req, res) => {
+    const limit = (req.query.limit || 100) * 1; // $get "limit" parameter in the URL
+    const page = (req.query.page || 0) * 1; // $get "page" parameter in the URL
+    const offset = (page - 1) * limit;
+
     let db = new sqlite3.Database(dbName, (err) => {
         if (err) throw err;
 
-        db.all("SELECT * FROM questions_base", (err, data) => {
-            if (err) throw err;
-            res.send(data);
-        });
+        db.all(
+            "SELECT * FROM questions_base LIMIT " + limit + " OFFSET " + offset,
+            (err, data) => {
+                if (err) throw err;
+                res.send(data);
+            }
+        );
 
         db.close((err) => {
             if (err) throw err;
