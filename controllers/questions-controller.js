@@ -1,4 +1,5 @@
 const sqlite3 = require("sqlite3").verbose();
+var Sequelize = require("sequelize");
 const dbName = "main.db";
 
 const allSqlColumnsNames = [
@@ -11,17 +12,19 @@ const allSqlColumnsNames = [
     "incorrect_answers",
 ];
 
-let db = new sqlite3.Database(dbName, (err) => {
-    if (err) throw err;
+var connection = new Sequelize(dbName, "root", "", {
+    dialect: "sqlite",
+    storage: "../" + dbName,
+    host: "localhost",
+});
 
-    //create a table if doesn't exist
-    db.run(
-        "CREATE TABLE IF NOT EXISTS questions_base (id INTEGER PRIMARY KEY, question VARCHAR(255), category VARCHAR(255), 'type' VARCHAR(255), difficulty VARCHAR(255), correct_answer VARCHAR(255), incorrect_answers VARCHAR(255));"
-    );
-
-    db.close((err) => {
-        if (err) throw err;
-    });
+var Questions = connection.define("questions_base", {
+    question: Sequelize.STRING,
+    category: Sequelize.STRING,
+    type: Sequelize.STRING,
+    difficulty: Sequelize.STRING,
+    correct_answer: Sequelize.STRING,
+    incorrect_answers: Sequelize.STRING,
 });
 
 exports.findAll = (req, res) => {
@@ -29,112 +32,45 @@ exports.findAll = (req, res) => {
     const page = (req.query.page || 0) * 1; // $get "page" parameter in the URL
     const offset = (page - 1) * limit;
 
-    let db = new sqlite3.Database(dbName, (err) => {
-        if (err) throw err;
-
-        db.all(
-            "SELECT * FROM questions_base LIMIT " + limit + " OFFSET " + offset,
-            (err, data) => {
-                if (err) throw err;
-                res.send(data);
-            }
-        );
-
-        db.close((err) => {
-            if (err) throw err;
-        });
-    });
+    Questions.findAll({
+        offset: offset,
+        limit: limit,
+    })
+        .then((results) => res.send(results))
+        .catch((error) => console.log(error));
+    //.finally(() => connection.close());
 };
 
 exports.findQuestionById = (req, res) => {
     const urlId = req.params.id;
 
-    let db = new sqlite3.Database(dbName, (err) => {
-        if (err) throw err;
-
-        db.get(
-            "SELECT * FROM questions_base WHERE id = " + urlId,
-            (err, data) => {
-                if (err) throw err;
-                res.send(data);
-            }
-        );
-
-        db.close((err) => {
-            if (err) throw err;
-        });
-    });
+    Questions.findAll({
+        limit: 1,
+        where: {
+            id: urlId,
+        },
+    })
+        .then((results) => res.send(results))
+        .catch((error) => console.log(error));
 };
 
-exports.postQuestions = (req, res) => {
+exports.postQuestions = async (req, res, error) => {
     const urlId = req.params.id;
     const bodyReceived = req.body;
 
-    let db = new sqlite3.Database(dbName, (err) => {
-        if (err) throw err;
-
-        db.get(
-            "SELECT * FROM questions_base WHERE id = '" + urlId + "'",
-            (err, data) => {
-                if (err) throw err;
-
-                if (data) {
-                    /* UPDATE datas if exists */
-                    for (const property in bodyReceived) {
-                        if (allSqlColumnsNames.includes(property)) {
-                            //keys received exists in the db columns
-                            const sqlUpdateQuery =
-                                "UPDATE questions_base SET " +
-                                property +
-                                " = '" +
-                                bodyReceived[property] +
-                                "' WHERE id = '" +
-                                urlId +
-                                "'";
-
-                            db.run(sqlUpdateQuery);
-                            console.log("UPDATED");
-                            res.status(202).send("object updated");
-                        } else {
-                            res.status(400).send("unknown key sent");
-                        }
-                    }
-                } else {
-                    /* INSERT datas if dont' exists */
-                    const keysNewObjectReceived = [];
-                    const valuesNewObjectReceived = [];
-
-                    for (const property in bodyReceived) {
-                        //foreach attributs in the object received
-                        if (allSqlColumnsNames.includes(property)) {
-                            //keys received exists in the db columns
-                            keysNewObjectReceived.push(property);
-                            valuesNewObjectReceived.push(
-                                "'" + bodyReceived[property] + "'"
-                            );
-                        } else {
-                            res.status(400).send("unknown key sent");
-                            return;
-                        }
-                    }
-
-                    const SqlInsertObjectQuery =
-                        "INSERT INTO questions_base (id," +
-                        keysNewObjectReceived +
-                        ") VALUES ('" +
-                        urlId +
-                        "'," +
-                        valuesNewObjectReceived +
-                        ")";
-                    console.log("go fuck yourself");
-                    db.run(SqlInsertObjectQuery);
-                    res.status(201).send("Object created");
-                }
-            }
-        );
-
-        db.close((err) => {
-            if (err) throw err;
+    try {
+        await Questions.upsert({
+            id: urlId,
+            question: bodyReceived.question,
+            category: bodyReceived.category,
+            type: bodyReceived.type,
+            difficulty: bodyReceived.difficulty,
+            correct_answer: bodyReceived.correct_answer,
+            incorrect_answers: bodyReceived.incorrect_answers,
         });
-    });
+    } catch (error) {
+        console.log(error);
+    }
+
+    res.status(201).send("succes");
 };
