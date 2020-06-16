@@ -2,16 +2,6 @@ const sqlite3 = require("sqlite3").verbose();
 var Sequelize = require("sequelize");
 const dbName = "main.db";
 
-const allSqlColumnsNames = [
-    "id",
-    "question",
-    "category",
-    "type",
-    "difficulty",
-    "correct_answer",
-    "incorrect_answers",
-];
-
 var connection = new Sequelize(dbName, "root", "", {
     dialect: "sqlite",
     storage: "../" + dbName,
@@ -44,7 +34,7 @@ exports.findAll = (req, res) => {
 exports.findQuestionById = (req, res) => {
     const urlId = req.params.id;
 
-    Questions.findAll({
+    Questions.findOne({
         limit: 1,
         where: {
             id: urlId,
@@ -58,19 +48,14 @@ exports.postQuestions = async (req, res, error) => {
     const urlId = req.params.id;
     const bodyReceived = req.body;
 
+    var PostStructure = require("./PostStructure");
+
     try {
-        await Questions.upsert({
-            id: urlId,
-            question: bodyReceived.question,
-            category: bodyReceived.category,
-            type: bodyReceived.type,
-            difficulty: bodyReceived.difficulty,
-            correct_answer: bodyReceived.correct_answer,
-            incorrect_answers: bodyReceived.incorrect_answers,
-        });
+        await Questions.upsert(
+            PostStructure.createStructureObject(urlId, bodyReceived)
+        );
+        res.status(201).send("success");
     } catch (error) {
         console.log(error);
     }
-
-    res.status(201).send("succes");
 };
