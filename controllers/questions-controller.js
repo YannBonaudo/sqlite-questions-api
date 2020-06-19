@@ -33,7 +33,7 @@ exports.findAll = (req, res) => {
         offset: offset,
         limit: limit,
     })
-        .then((results) => res.send(results))
+        .then((results) => res.header('Access-Control-Allow-Origin', '*').send(results))
         .catch((error) => console.log(error));
     //.finally(() => connection.close());
 };
