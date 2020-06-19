@@ -1,14 +1,20 @@
 const sqlite3 = require("sqlite3").verbose();
 var Sequelize = require("sequelize");
+const { DATE } = require("sequelize");
 const dbName = "main.db";
+
+let db = new sqlite3.Database(dbName, (err) => {
+    if (err) throw err;
+    console.log("main.db created");
+});
 
 var connection = new Sequelize(dbName, "root", "", {
     dialect: "sqlite",
-    storage: "../" + dbName,
+    storage: "./" + dbName,
     host: "localhost",
 });
 
-var Questions = connection.define("questions_base", {
+var Questions = connection.define("questions_bases", {
     question: Sequelize.STRING,
     category: Sequelize.STRING,
     type: Sequelize.STRING,
@@ -16,6 +22,7 @@ var Questions = connection.define("questions_base", {
     correct_answer: Sequelize.STRING,
     incorrect_answers: Sequelize.STRING,
 });
+Questions.sync();
 
 exports.findAll = (req, res) => {
     const limit = (req.query.limit || 100) * 1; // $get "limit" parameter in the URL
